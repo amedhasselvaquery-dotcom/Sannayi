@@ -348,7 +348,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBuFYQuJxjinz7_0yTCTO-0jnvjeg-iXoQ",
@@ -364,24 +364,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     const db = getFirestore(app);
 
     // 1. فحص المستخدم والترحيب به
-    // ده الكود اللي بيبعت الإشعار
-fetch("https://api.onesignal.com/notifications", {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Authorization": "Key os_v2_app_b66zbv255zckzlclj6a36ij7uygvutj6dbredonaznzc4bl43js7o6mm3r2o365gfmd5tmcnftbzuxted7nxhccpdhvhpfqk3oelglq"
-    },
-    body: JSON.stringify({
-        app_id: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
-        include_external_user_ids: [currentTargetProvider.id], // ID الفني من فيربيز
-        contents: {"ar": "طلب جديد يا هندسة! 🛠️ محتاجينك بسرعة."},
-        headings: {"ar": "تطبيق صنايعي"}
-    })
-})
-.then(response => response.json())
-.then(data => console.log("Notification Sent ✅", data))
-.catch(error => console.error("Error ❌", error));
-
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -396,109 +378,88 @@ fetch("https://api.onesignal.com/notifications", {
         }
     });
 
-    // 2. دالة جلب الصنايعية
+    // 2. البحث وتصفية الصنايعية
     document.getElementById('searchInput').addEventListener('input', (e) => {
-    const term = e.target.value.trim().toLowerCase(); // الكلمة اللي اليوزر كتبها
-    const cards = document.querySelectorAll('.pro-card');
-    let foundAny = false;
+        const term = e.target.value.trim().toLowerCase();
+        const cards = document.querySelectorAll('.pro-card');
+        let foundAny = false;
 
-    cards.forEach(card => {
-        // بنجيب النص بتاع التخصص اللي جوه الكارت
-        // بنشيل منه أي مسافات زيادة عشان البحث يكون دقيق
-        const specialty = card.querySelector('.pro-info p').innerText.toLowerCase();
+        cards.forEach(card => {
+            const specialty = card.querySelector('.pro-info p').innerText.toLowerCase();
+            if (specialty.includes(term)) {
+                card.style.display = "flex";
+                card.classList.add('animate-up');
+                foundAny = true;
+            } else {
+                card.style.display = "none";
+                card.classList.remove('animate-up');
+            }
+        });
 
-        // البحث المرن: لو الكلمة اللي اتكتبت موجودة جوه نص التخصص
-        if (specialty.includes(term)) {
-            card.style.display = "flex";
-            card.classList.add('animate-up'); // إضافة حركة خفيفة لما يظهر
-            foundAny = true;
-        } else {
-            card.style.display = "none";
-            card.classList.remove('animate-up');
+        const container = document.getElementById('providersContainer');
+        const oldMsg = document.getElementById('no-results-msg');
+        if (oldMsg) oldMsg.remove();
+        if (!foundAny && term !== "") {
+            container.insertAdjacentHTML('beforeend', `
+                <div id="no-results-msg" style="text-align:center; padding:30px; color:#888;">
+                    <i class="fa-solid fa-magnifying-glass-blur" style="font-size:30px; margin-bottom:10px; opacity:0.5;"></i>
+                    <p>للأسف مفيش فنيين في تخصص "${term}" حالياً</p>
+                </div>
+            `);
         }
     });
 
-    // إظهار رسالة لو مفيش تخصص مطابق
-    const container = document.getElementById('providersContainer');
-    const oldMsg = document.getElementById('no-results-msg');
-    if (oldMsg) oldMsg.remove();
-
-    if (!foundAny && term !== "") {
-        container.insertAdjacentHTML('beforeend', `
-            <div id="no-results-msg" style="text-align:center; padding:30px; color:#888;">
-                <i class="fa-solid fa-magnifying-glass-blur" style="font-size:30px; margin-bottom:10px; opacity:0.5;"></i>
-                <p>للأسف مفيش فنيين في تخصص "${term}" حالياً</p>
-            </div>
-        `);
-    }
-});
-
+    // 3. دالة جلب الصنايعية
     async function loadProviders(category = null) {
-    const container = document.getElementById('providersContainer');
-    const title = document.getElementById('listTitle');
-    
-    container.innerHTML = '<p style="text-align:center; color:#888;">جاري البحث عن فنيين متاحين...</p>';
-    title.innerText = category ? `فنيين ${category}` : "أعلى التقييمات";
+        const container = document.getElementById('providersContainer');
+        const title = document.getElementById('listTitle');
+        container.innerHTML = '<p style="text-align:center; color:#888;">جاري البحث عن فنيين متاحين...</p>';
+        title.innerText = category ? `فنيين ${category}` : "أعلى التقييمات";
 
-    try {
-        let q;
-        
-        if (category) {
-            // جلب الفنيين في تخصص معين بشرط أن يكونوا (Online)
-            q = query(
-                collection(db, "users"), 
-                where("role", "==", "provider"), 
-                where("specialization", "==", category),
-                where("isOnline", "==", true)
-            );
-        } else {
-            // جلب كل الفنيين المتاحين (Online) للقائمة العامة
-            q = query(
-                collection(db, "users"), 
-                where("role", "==", "provider"), 
-                where("isOnline", "==", true)
-            );
-        }
+        try {
+            let q = query(collection(db, "users"), where("role", "==", "provider"), where("isOnline", "==", true));
+            if (category) {
+                q = query(collection(db, "users"), where("role", "==", "provider"), where("specialization", "==", category), where("isOnline", "==", true));
+            }
 
-        const querySnapshot = await getDocs(q);
-        container.innerHTML = '';
+            const querySnapshot = await getDocs(q);
+            container.innerHTML = '';
+            if (querySnapshot.empty) {
+                container.innerHTML = `<p style="text-align:center; color:#888; padding:20px;">عفواً، لا يوجد فنيين متاحين حالياً.</p>`;
+                return;
+            }
 
-        if (querySnapshot.empty) {
-            container.innerHTML = `
-                <div style="text-align:center; padding:40px 20px;">
-                    <i class="fa-solid fa-user-slash" style="font-size:40px; color:#ccc; margin-bottom:15px;"></i>
-                    <p style="color:#888;">عفواً، لا يوجد فنيين متاحين حالياً ${category ? 'في هذا التخصص' : ''}.</p>
-                </div>`;
-            return;
-        }
-
-        querySnapshot.forEach((doc) => {
-            const p = doc.data();
-            const card = `
-                <div class="pro-card" onclick="window.openOrder('${doc.id}', '${p.name}')">
-                    <img src="https://ui-avatars.com/api/?name=${p.name}&background=ff5a00&color=fff" alt="Worker">
-                    <div class="pro-info">
-                        <h4>${p.name}</h4>
-                        <p><i class="fa-solid fa-screwdriver-wrench"></i> ${p.specialization}</p>
-                        <div class="rating">
-    <i class="fa-solid fa-star" style="color: #ffc107;"></i> 
-    ${p.rating ? p.rating : '0.0'} 
-    <span style="font-size: 10px; color: #aaa;">(${p.reviewsCount || 0})</span>
-</div>
-
-                    <div class="price-tag">طلب الآن</div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', card);
-        });
-    } catch (e) {
-        console.error("Error loading providers: ", e);
-        container.innerHTML = '<p style="text-align:center; color:red;">حدث خطأ أثناء تحميل البيانات، يرجى المحاولة لاحقاً.</p>';
+            querySnapshot.forEach((doc) => {
+                const p = doc.data();
+                const card = `
+                    <div class="pro-card" onclick="window.openOrder('${doc.id}', '${p.name}')">
+                        <img src="https://ui-avatars.com/api/?name=${p.name}&background=ff5a00&color=fff">
+                        <div class="pro-info">
+                            <h4>${p.name}</h4>
+                            <p><i class="fa-solid fa-screwdriver-wrench"></i> ${p.specialization}</p>
+                            <div class="rating"><i class="fa-solid fa-star"></i> ${p.rating || '0.0'} <span style="font-size: 10px; color: #aaa;">(${p.reviewsCount || 0})</span></div>
+                        </div>
+                        <div class="price-tag">طلب الآن</div>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+        } catch (e) { console.error(e); }
     }
-}
 
+    // 4. نظام المودال والطلب
+    let currentTargetProvider = null;
 
-    // 3. الدوال العامة
+    window.openOrder = (id, name) => {
+        currentTargetProvider = { id, name };
+        document.getElementById('targetProviderName').innerText = `طلب خدمة من: ${name}`;
+        document.getElementById('orderModal').classList.remove('hidden');
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('orderTime').value = now.toISOString().slice(0, 16);
+    };
+
+    window.closeOrderModal = () => document.getElementById('orderModal').classList.add('hidden');
+
     window.selectService = (name) => {
         loadProviders(name);
         window.toggleServices(false);
@@ -509,126 +470,72 @@ fetch("https://api.onesignal.com/notifications", {
         modal.classList.toggle('hidden', !show);
         if(show) {
             const list = document.getElementById('fullServicesList');
-            const services = [
-                {n:'سباكة', i:'fa-faucet'}, {n:'كهرباء', i:'fa-bolt'}, 
-                {n:'تكييف', i:'fa-snowflake'}, {n:'نجارة', i:'fa-hammer'},
-                {n:'دهانات', i:'fa-paint-roller'}, {n:'تنظيف', i:'fa-broom'},
-                {n:'دش', i:'fa-satellite-dish'}, {n:'الوميتال', i:'fa-window-maximize'}
-            ];
+            const services = [{n:'سباكة', i:'fa-faucet'}, {n:'كهرباء', i:'fa-bolt'}, {n:'تكييف', i:'fa-snowflake'}, {n:'نجارة', i:'fa-hammer'}, {n:'دهانات', i:'fa-paint-roller'}, {n:'تنظيف', i:'fa-broom'}, {n:'دش', i:'fa-satellite-dish'}, {n:'الوميتال', i:'fa-window-maximize'}];
             list.innerHTML = services.map(s => `
                 <div class="cat-item" onclick="selectService('${s.n}')">
                     <div class="cat-icon"><i class="fa-solid ${s.i}"></i></div>
                     <span>${s.n}</span>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
     };
 
-    import { addDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+    // 5. تأكيد الطلب وإرسال الإشعار (الزتونة المصلحة)
+    document.getElementById('confirmOrderBtn').onclick = async () => {
+        const address = document.getElementById('orderAddress').value;
+        const desc = document.getElementById('orderDesc').value;
+        const time = document.getElementById('orderTime').value;
+        const currentUser = auth.currentUser;
 
-let currentTargetProvider = null;
+        if(!address || !desc || !time) return alert("⚠️ أكمل البيانات أولاً.");
 
-// فتح نافذة الطلب
-window.openOrder = (id, name) => {
-    currentTargetProvider = { id, name };
-    document.getElementById('targetProviderName').innerText = `طلب خدمة من: ${name}`;
-    document.getElementById('orderModal').classList.remove('hidden');
+        const confirmPolicy = confirm("تنبيه: تجاهل الرد يعرضك للحظر النهائي. هل تريد الاستمرار؟");
+        if(!confirmPolicy) return;
 
-    // كود يخلي الوقت الافتراضي هو "دلوقتي"
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.getElementById('orderTime').value = now.toISOString().slice(0, 16);
-};
+        try {
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+            const userData = userDoc.data();
+            const userPhone = userData.phone || "";
 
+            if (!userPhone.trim()) return alert("⚠️ أضف رقم هاتفك في الإعدادات أولاً.");
 
-// قفل النافذة
-window.closeOrderModal = () => {
-    document.getElementById('orderModal').classList.add('hidden');
-};
+            // أ- إرسال لـ Firestore
+            const docRef = await addDoc(collection(db, "orders"), {
+                clientId: currentUser.uid,
+                clientName: userData.name || "عميل",
+                clientPhone: userPhone,
+                providerId: currentTargetProvider.id,
+                providerName: currentTargetProvider.name,
+                address, description: desc, appointment: time,
+                status: 'pending', createdAt: new Date()
+            });
 
-// وظيفة إرسال الطلب لفايربيز
-document.getElementById('confirmOrderBtn').onclick = async () => {
-    const address = document.getElementById('orderAddress').value;
-    const desc = document.getElementById('orderDesc').value;
-    const time = document.getElementById('orderTime').value;
-    const currentUser = auth.currentUser;
+            // ب- إرسال لـ OneSignal
+            try {
+                fetch("https://api.onesignal.com/notifications", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json; charset=utf-8",
+                        "Authorization": "Key os_v2_app_b66zbv255zckzlclj6a36ij7uygvutj6dbredonaznzc4bl43js7o6mm3r2o365gfmd5tmcnftbzuxted7nxhccpdhvhpfqk3oelglq"
+                    },
+                    body: JSON.stringify({
+                        app_id: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
+                        include_external_user_ids: [currentTargetProvider.id],
+                        contents: {"ar": "يا هندسة في عميل محتاجك، ادخل شوف الطلب! 🛠️"},
+                        headings: {"ar": "طلب جديد في صنايعي"}
+                    })
+                });
+            } catch (err) { console.error("Notification Error:", err); }
 
-    // 1. التحقق من إدخال البيانات في الخانات
-    if(!address || !desc || !time) {
-        return alert("⚠️ من فضلك أكمل تفاصيل الطلب (العنوان، الموعد، والوصف) أولاً.");
-    }
+            // ج- التوجيه
+            window.location.href = `radar.html?orderId=${docRef.id}`;
 
-    // 2. رسالة التأكيد "الشيك" والتحذير من الحظر
-    const confirmPolicy = confirm(
-        "تنبيه هام جداً:\n\n" +
-        "• بمجرد الطلب، أنت تلتزم بالرد على الفني فور تواصله معك.\n" +
-        "• في حال تجاهل الرد، سيتم حظر IP جهازك نهائياً من المنصة.\n" +
-        "• سيتم إرسال رقم هاتفك المسجل في الإعدادات للفني الآن.\n\n" +
-        "هل أنت متأكد من استكمال الطلب؟"
-    );
-
-    if(!confirmPolicy) return;
-
-    try {
-        // 3. جلب بيانات العميل (الاسم والرقم) من الـ Firestore
-        // لضمان أننا نرسل الرقم المحدث الموجود في البروفايل
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        
-        if (!userDoc.exists()) {
-            return alert("خطأ: لم نتمكن من العثور على بيانات حسابك.");
+        } catch (e) {
+            console.error(e);
+            alert("حدث خطأ: " + e.message);
         }
-
-        const userData = userDoc.data();
-        const userPhone = userData.phone || "لم يسجل رقم";
-
-        // التحقق إذا كان العميل نسي يضيف رقم في البروفايل
-        if (!userData.phone || userData.phone.trim() === "") {
-            return alert("⚠️ عفواً! يجب إضافة رقم هاتفك في صفحة 'حسابي' أولاً ليتمكن الفني من التواصل معك.");
-        }
-
-        // 4. إرسال الطلب لـ Firestore متضمناً كل البيانات
-        // 1. هنا الكود الأصلي بتاعك اللي بيبعت الطلب للفيربيز
-const docRef = await addDoc(collection(db, "orders"), {
-    clientId: currentUser.uid,
-    clientName: userData.name || "عميل",
-    clientPhone: userPhone,
-    providerId: currentTargetProvider.id, // ده الـ ID اللي هنبعتله الإشعار
-    providerName: currentTargetProvider.name,
-    address: address,
-    description: desc,
-    appointment: time,
-    status: 'pending',
-    createdAt: new Date()
-});
-
-// 2. 🔥 الزيادة اللي هتحطها هنا عشان الإشعار يوصل والموبايل مقفول 🔥
-try {
-    fetch("https://api.onesignal.com/notifications", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Authorization": "Key os_v2_app_b66zbv255zckzlclj6a36ij7uygvutj6dbredonaznzc4bl43js7o6mm3r2o365gfmd5tmcnftbzuxted7nxhccpdhvhpfqk3oelglq"
-        },
-        body: JSON.stringify({
-            app_id: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
-            // بنقوله ابعت للفني اللي الـ ID بتاعه متسجل عندنا
-            include_external_user_ids: [currentTargetProvider.id], 
-            contents: {"ar": "يا هندسة في عميل محتاجك، ادخل شوف الطلب! 🛠️"},
-            headings: {"ar": "طلب جديد في صنايعي"}
-        })
-    });
-    console.log("تم إرسال نداء الإشعار بنجاح");
-} catch (error) {
-    console.error("فشل إرسال الإشعار:", error);
-}
-
-// 3. هنا الكود الأصلي بتاعك اللي بيحول العميل لصفحة الرادار
-window.location.href = `radar.html?orderId=${docRef.id}`;
-
-
+    };
 
     window.auth = { signOut: () => signOut(auth) };
-
 </script>
 </body>
 </html>
