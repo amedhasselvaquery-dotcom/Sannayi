@@ -460,8 +460,7 @@
     </div>
 </div>
 
-<script type="module">
-    // --- نفس منطق البرمجة الخاص بك بدون تغيير ---
+ <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
@@ -483,55 +482,101 @@
     let currentActiveOrderId = null;
     let firstLoad = true; 
 
-    onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        // --- إضافة طلب إذن الإشعارات هنا ---
-        if ("Notification" in window && Notification.permission !== "granted") {
-            Notification.requestPermission();
-        }
-        OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-        appId: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
+    // --- ربط OneSignal بالفني ---
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+            appId: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
+        });
     });
-    // أول ما الفني يسجل دخول، بنربطه بالـ ID بتاعه
-    OneSignal.login(auth.currentUser.uid); 
-});
 
-        // ----------------------------------
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // تسجيل دخول المستخدم في OneSignal لربط الإشعارات بالـ UID
+            OneSignalDeferred.push(function(OneSignal) {
+                OneSignal.login(user.uid);
+                console.log("OneSignal: Connected for UID", user.uid);
+            });
 
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            if(data.role !== 'provider') window.location.href = "client.html";
-            
-            const debt = Number(data.debt || 0); 
-            
-            if (debt >= 200) {
-                document.getElementById('blockScreen').style.display = 'flex';
-                document.querySelector('.bottom-nav').style.display = 'none';
-                return; 
-            } else if (debt > 0) {
-                document.getElementById('debtReminder').style.display = 'flex';
-                document.getElementById('debtValue').innerText = debt.toFixed(2);
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if(data.role !== 'provider') window.location.href = "client.html";
+                
+                const debt = Number(data.debt || 0); 
+                if (debt >= 200) {
+                    document.getElementById('blockScreen').style.display = 'flex';
+                    document.querySelector('.bottom-nav').style.display = 'none';
+                    return; 
+                } else if (debt > 0) {
+                    document.getElementById('debtReminder').style.display = 'flex';
+                    document.getElementById('debtValue').innerText = debt.toFixed(2);
+                }
+
+                document.getElementById('provName').innerText = `يا ${data.name.split(' ')[0]}`;
+                document.getElementById('provSpec').innerText = `فني ${data.specialization}`;
+                isOnline = data.isOnline;
+                updateStatusUI();
+                listenToOrders(user.uid);
             }
+        } else { window.location.href = "index.html"; }
+    });
 
-            document.getElementById('provName').innerText = `يا ${data.name.split(' ')[0]}`;
-            document.getElementById('provSpec').innerText = `فني ${data.specialization}`;
-            isOnline = data.isOnline;
-            updateStatusUI();
-            listenToOrders(user.uid);
-        }
-    } else { window.location.href = "index.html"; }
-});
+    function listenToOrders(provId) {
+        const list = document.getElementById('ordersList');
+        const mySpec = document.getElementById('provSpec').innerText.replace('فني ', '').trim();
+        const q = query(collection(db, "orders"), where("status", "in", ["pending", "accepted"]));
 
+        onSnapshot(q, (snapshot) => {
+            // تنظيف القائمة قبل العرض
+            list.innerHTML = '<div class="section-title"><span>المهام النشطة</span></div>';
+            let hasOrders = false;
 
-function sendNotification(name, address) {
-    new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play();
-    if (Notification.permission === "granted") {
-        new Notification("طلب جديد يا هندسة! 🛠️", { body: `العميل: ${name}\nالموقع: ${address}` });
+            snapshot.forEach((docSnap) => {
+                const order = docSnap.data();
+                const isMyDirect = order.providerId === provId;
+                const isPublic = !order.providerId && order.specialization === mySpec;
+
+                if (isMyDirect || isPublic) {
+                    hasOrders = true;
+                    const isPending = order.status === 'pending';
+                    const orderDate = order.appointment ? new Date(order.appointment).toLocaleString('ar-EG') : "فوري";
+
+                    const card = `
+                    <div class="order-card">
+                        <div class="card-header">
+                            <span class="client-name">${order.clientName}</span>
+                            <span class="status-tag" style="background:${isPending ? '#fff5f0':'#eafaf1'}; color:${isPending ? 'var(--primary)':'var(--success)'}">
+                                ${isPending ? 'طلب جديد' : 'قيد التنفيذ'}
+                            </span>
+                        </div>
+                        <div class="info-item"><i class="fa-solid fa-location-arrow"></i> ${order.address}</div>
+                        <div class="info-item"><i class="fa-solid fa-clock"></i> ${orderDate}</div>
+                        <div class="description-box">"${order.description}"</div>
+                        <div class="phone-bar">
+                            <span style="font-weight:700;">${order.clientPhone || '---'}</span>
+                            <a href="tel:${order.clientPhone}" class="btn-call"><i class="fa-solid fa-phone"></i> اتصل بالعميل</a>
+                        </div>
+                        <div class="action-group">
+                            ${isPending ? `
+                                <button class="btn-modern btn-accept" onclick="window.updateOrderStatus('${docSnap.id}', 'accepted')">قبول</button>
+                                <button class="btn-modern btn-reject" onclick="window.updateOrderStatus('${docSnap.id}', 'rejected')">رفض</button>
+                            ` : `
+                                <button class="btn-modern btn-chat" onclick="location.href='chat.html?orderId=${docSnap.id}'">مراسلة</button>
+                                <button class="btn-modern btn-finish" onclick="window.updateOrderStatus('${docSnap.id}', 'completed')">إنهاء</button>
+                            `}
+                        </div>
+                    </div>`;
+                    list.insertAdjacentHTML('beforeend', card);
+                }
+            });
+
+            if (!hasOrders) {
+                list.innerHTML += '<p style="text-align:center; color:#94a3b8; margin-top:40px;">لا توجد طلبات حالياً</p>';
+            }
+            firstLoad = false;
+        });
     }
-}
-    
 
     window.toggleOnline = async () => {
         try {
@@ -546,7 +591,6 @@ function sendNotification(name, address) {
         const label = document.getElementById('statusLabel');
         const dot = document.getElementById('statusDot');
         const btn = document.getElementById('statusBtn');
-        
         if (isOnline) {
             label.innerText = "أنت متاح للعمل";
             dot.className = "dot dot-online";
@@ -559,85 +603,6 @@ function sendNotification(name, address) {
             btn.style.background = "var(--success)";
         }
     }
-
-    function listenToOrders(provId) {
-    const list = document.getElementById('ordersList');
-
-    if (document.getElementById('blockScreen').style.display === 'flex') {
-        list.innerHTML = `<div style="text-align:center; padding:50px 20px;"><i class="fa-solid fa-lock fa-3x" style="color:var(--danger); margin-bottom:15px;"></i><h3 style="color:var(--secondary);">الطلبات متوقفة</h3></div>`;
-        return;
-    }
-
-    const mySpec = document.getElementById('provSpec').innerText.replace('فني ', '').trim();
-    const q = query(collection(db, "orders"), where("status", "in", ["pending", "accepted"]));
-
-    onSnapshot(q, (snapshot) => {
-        // --- الجزء المسؤول عن الإشعار والصوت ---
-        snapshot.docChanges().forEach(change => {
-            if (change.type === "added" && !firstLoad) {
-                const order = change.doc.data();
-                if (order.status === 'pending' && (!order.providerId || order.providerId === provId) && order.specialization === mySpec) {
-                    // تشغيل الصوت
-                    new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(e => console.log("الصوت محظور"));
-                    // إظهار الإشعار
-                    if (Notification.permission === "granted") {
-                        new Notification("طلب جديد يا هندسة! 🛠️", { body: `العميل: ${order.clientName}\nالموقع: ${order.address}` });
-                    }
-                }
-            }
-        });
-        firstLoad = false;
-        // ---------------------------------------
-
-        list.innerHTML = '<div class="section-title"><span>المهام النشطة</span></div>';
-        let hasOrders = false;
-
-        snapshot.forEach((docSnap) => {
-            const order = docSnap.data();
-            const isMyDirect = order.providerId === provId;
-            const isPublic = !order.providerId && order.specialization === mySpec;
-
-            if (isMyDirect || isPublic) {
-                hasOrders = true;
-                const isPending = order.status === 'pending';
-                const orderDate = order.appointment ? new Date(order.appointment).toLocaleDateString('ar-EG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "فوري";
-
-                const card = `
-                <div class="order-card">
-                    <div class="card-header">
-                        <span class="client-name">${order.clientName}</span>
-                        <span class="status-tag" style="background:${isPending ? '#fff5f0':'#eafaf1'}; color:${isPending ? 'var(--primary)':'var(--success)'}">
-                            ${isPending ? 'طلب جديد' : 'قيد التنفيذ'}
-                        </span>
-                    </div>
-                    <div class="info-item"><i class="fa-solid fa-location-arrow"></i> ${order.address}</div>
-                    <div class="info-item"><i class="fa-solid fa-clock"></i> ${orderDate}</div>
-                    <div class="description-box">"${order.description}"</div>
-                    <div class="phone-bar">
-                        <span style="font-weight:700;">${order.clientPhone || '---'}</span>
-                        <a href="tel:${order.clientPhone}" class="btn-call"><i class="fa-solid fa-phone"></i> اتصل بالعميل</a>
-                    </div>
-                    <div class="action-group">
-                        ${isPending ? `
-                            <button class="btn-modern btn-accept" onclick="updateOrderStatus('${docSnap.id}', 'accepted')">قبول</button>
-                            <button class="btn-modern btn-reject" onclick="updateOrderStatus('${docSnap.id}', 'rejected')">رفض</button>
-                        ` : `
-                            <button class="btn-modern btn-chat" onclick="location.href='chat.html?orderId=${docSnap.id}'">مراسلة</button>
-                            <button class="btn-modern btn-finish" onclick="updateOrderStatus('${docSnap.id}', 'completed')">إنهاء</button>
-                        `}
-                    </div>
-                </div>`;
-                list.insertAdjacentHTML('beforeend', card);
-            }
-        });
-
-        if (!hasOrders) {
-            list.innerHTML += '<p style="text-align:center; color:#94a3b8; margin-top:40px;">لا توجد طلبات حالياً</p>';
-        }
-    });
-}
-
-
 
     window.updateOrderStatus = async (orderId, newStatus) => {
         if (newStatus === 'completed') {
@@ -657,82 +622,55 @@ function sendNotification(name, address) {
 
     window.closeModal = () => { document.getElementById('finishOrderModal').style.display = 'none'; };
 
-    // وظيفة مساعدة لتحويل الملف إلى Base64 مضغوط
-const processImage = async (file) => {
-    if (!file) return null;
-    const options = { maxSizeMB: 0.1, maxWidthOrHeight: 600, useWebWorker: true };
-    const compressed = await imageCompression(file, options);
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(compressed);
-        reader.onloadend = () => resolve(reader.result);
-    });
-};
-
-window.submitFinalReport = async () => {
-    const price = document.getElementById('finalPriceInput').value;
-    // جلب الملفات بدلاً من الروابط
-    const payFile = document.getElementById('payImgFile').files[0];
-    const beforeFile = document.getElementById('beforeImgFile').files[0];
-    const afterFile = document.getElementById('afterImgFile').files[0];
-    const btn = document.getElementById('confirmFinishBtn');
-
-    if (!price || !payFile || !beforeFile || !afterFile) {
-        return alert("⚠️ يرجى اختيار جميع الصور وإدخال المبلغ");
-    }
-
-    btn.disabled = true; 
-    btn.innerText = "جاري رفع الصور ومعالجة الطلب...";
-
-    try {
-        // 1. معالجة وضغط الصور الثلاثة
-        const payBase64 = await processImage(payFile);
-        const beforeBase64 = await processImage(beforeFile);
-        const afterBase64 = await processImage(afterFile);
-
-        // 2. تحديث حالة الطلب في Firestore بالبيانات الجديدة
-        await updateDoc(doc(db, "orders", currentActiveOrderId), {
-            status: 'completed', 
-            finalPrice: price, 
-            paymentProofImg: payBase64,
-            workBeforeImg: beforeBase64, 
-            workAfterImg: afterBase64, 
-            completedAt: new Date()
+    const processImage = async (file) => {
+        if (!file) return null;
+        const options = { maxSizeMB: 0.1, maxWidthOrHeight: 600, useWebWorker: true };
+        const compressed = await imageCompression(file, options);
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(compressed);
+            reader.onloadend = () => resolve(reader.result);
         });
+    };
 
-        // 3. حساب وتحديث المديونية (10% عمولة)
-        const commission = Number(price) * 0.10;
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        const currentDebt = userSnap.data().debt || 0;
+    window.submitFinalReport = async () => {
+        const price = document.getElementById('finalPriceInput').value;
+        const payFile = document.getElementById('payImgFile').files[0];
+        const beforeFile = document.getElementById('beforeImgFile').files[0];
+        const afterFile = document.getElementById('afterImgFile').files[0];
+        const btn = document.getElementById('confirmFinishBtn');
 
-        await updateDoc(userRef, {
-            debt: currentDebt + commission
-        });
+        if (!price || !payFile || !beforeFile || !afterFile) return alert("⚠️ أكمل البيانات والصور");
 
-        closeModal();
-        alert(`✅ تم إنهاء المهمة بنجاح! تم إضافة عمولة ${commission} ج.م لمحفظتك.`);
-        location.reload();
+        btn.disabled = true; btn.innerText = "جاري الحفظ...";
 
-    } catch (e) { 
-        console.error(e);
-        alert("حدث خطأ أثناء الإرسال: " + e.message); 
-    } finally { 
-        btn.disabled = false; 
-        btn.innerText = "تأكيد وإنهاء المهمة"; 
-    }
-};
+        try {
+            const payBase64 = await processImage(payFile);
+            const beforeBase64 = await processImage(beforeFile);
+            const afterBase64 = await processImage(afterFile);
 
+            await updateDoc(doc(db, "orders", currentActiveOrderId), {
+                status: 'completed', finalPrice: price, paymentProofImg: payBase64,
+                workBeforeImg: beforeBase64, workAfterImg: afterBase64, completedAt: new Date()
+            });
 
+            const commission = Number(price) * 0.10;
+            const userRef = doc(db, "users", auth.currentUser.uid);
+            const userSnap = await getDoc(userRef);
+            await updateDoc(userRef, { debt: (userSnap.data().debt || 0) + commission });
+
+            closeModal();
+            alert(`✅ تم الإنهاء! العمولة: ${commission} ج.م`);
+            location.reload();
+        } catch (e) { alert("خطأ: " + e.message); } finally { btn.disabled = false; }
+    };
 
     window.auth = { signOut: () => signOut(auth) };
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-    .then(reg => console.log('Service Worker Registered!', reg))
-    .catch(err => console.error('Service Worker Failed!', err));
-}
-
-    </script>
+    // --- تسجيل الـ Worker الخاص بـ OneSignal فقط ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/OneSignalSDKWorker.js');
+    }
+</script>
 </body>
 </html>
