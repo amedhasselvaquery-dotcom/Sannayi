@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+    <link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="صنايعي - المنصة الأولى لخدمات الصيانة والخدمات المنزلية">
+<meta name="theme-color" content="#ff5a00"> <meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="صنايعي">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="صنايعي">
+<link rel="apple-touch-icon" href="logo.png"> <meta name="format-detection" content="telephone=no">
+
+<link rel="manifest" href="manifest.json">
+    <title>Sanaayi | صنايعي</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff5a00;
+            --primary-light: #ff8a4d;
+            --dark-blue: #0f172a;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--dark-blue);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* خلفية متدرجة متحركة */
+        .bg-gradient {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, var(--dark-blue), #1e293b, var(--primary));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .app-frame {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 420px;
+            height: 90vh;
+            border-radius: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 50px 30px;
+            box-sizing: border-box;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* اللوجو المتطور */
+        .logo-container {
+            position: relative;
+            margin-top: 40px;
+        }
+
+        .logo-circle {
+            width: 130px; height: 130px;
+            background: var(--primary);
+            border-radius: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 65px;
+            color: white;
+            box-shadow: 0 20px 40px var(--primary-glow);
+            animation: floating 3s ease-in-out infinite;
+            transform: rotate(-10deg);
+        }
+
+        .logo-ring {
+            position: absolute;
+            top: -10px; left: -10px; right: -10px; bottom: -10px;
+            border: 2px dashed var(--primary);
+            border-radius: 45px;
+            animation: spin 10s linear infinite;
+            opacity: 0.3;
+        }
+
+        h1 {
+            color: var(--dark-blue);
+            font-size: 40px;
+            font-weight: 900;
+            margin: 20px 0 5px;
+            letter-spacing: -1px;
+        }
+
+        .slogan {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* أزرار الأكشن */
+        .actions-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 18px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: 800;
+            text-align: center;
+            text-decoration: none;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-start {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 90, 0, 0.3);
+        }
+
+        .btn-start:hover {
+            transform: translateY(-5px) scale(1.02);
+            background: #e65100;
+        }
+
+        .btn-about {
+            background: #f1f5f9;
+            color: var(--dark-blue);
+            font-size: 15px;
+            padding: 14px;
+        }
+
+        .btn-about:hover {
+            background: #e2e8f0;
+            color: var(--primary);
+        }
+
+        /* لودر عصري */
+        .loader-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 10px; height: 10px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        /* الأنيميشن */
+        @keyframes floating {
+            0%, 100% { transform: translateY(0) rotate(-10deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.5); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+    .install-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: #ffffff;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 9999;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-bottom: 2px solid var(--primary);
+}
+
+.banner-content { display: flex; align-items: center; gap: 12px; }
+
+.banner-logo { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; }
+
+.banner-text { display: flex; flex-direction: column; font-size: 13px; }
+
+.banner-text strong { color: #333; }
+.banner-text span { color: #777; font-size: 11px; }
+
+.banner-btn {
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.close-banner {
+    background: none; border: none; font-size: 20px; color: #999; cursor: pointer;
+}
+
+    </style>
+</head>
+<body>
+<div id="install-banner" class="install-banner" style="display: none;">
+    <div class="banner-content">
+        <img src="logo.png" alt="Sanaayi Logo" class="banner-logo">
+        <div class="banner-text">
+            <strong>تطبيق صنايعي</strong>
+            <span>حمل التطبيق لتجربة أسرع وأفضل</span>
+        </div>
+    </div>
+    <a href="رابط_التحميل_هنا" id="download-btn" class="banner-btn">تحميل الآن</a>
+    <button onclick="closeBanner()" class="close-banner">&times;</button>
+</div>
+
+<div class="bg-gradient"></div>
+
+<div class="app-frame">
+    <div class="logo-container">
+        <div class="logo-ring"></div>
+        <div class="logo-circle">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+    </div>
+
+    <div style="text-align: center;">
+        <h1>صنايعي</h1>
+        <p class="slogan">جودة واحترافية في خدمتك</p>
+    </div>
+
+    <div class="actions-area">
+<a href="javascript:void(0)" onclick="handleStartClick()" class="btn btn-start">
+    ابدأ الآن <i class="fa-solid fa-arrow-left"></i>
+</a>
+
+
+        
+        <a href="about.html" class="btn btn-about">
+            <i class="fa-solid fa-circle-info"></i> عن المنصة والسياسات
+        </a>
+    </div>
+
+    <div class="loader-dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+</div>
+
+<script type="module">
+    // استدعاء مكتبات Firebase اللازمة
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+    // بيانات مشروعك (تأكد أنها نفس الموجودة في login.html)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBuFYQuJxjinz7_0yTCTO-0jnvjeg-iXoQ",
+        authDomain: "sanaayi.firebaseapp.com",
+        projectId: "sanaayi",
+        storageBucket: "sanaayi.firebasestorage.app",
+        messagingSenderId: "657863522339",
+        appId: "1:657863522339:web:f7ad44ca81147d0d519996"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // وظيفة التوجيه الذكي المعتمدة على Firebase
+    async function handleStartClick() {
+        const user = auth.currentUser;
+
+        if (user && user.emailVerified) {
+            // جلب بيانات الدور من Firestore مباشرة لضمان الدقة
+            const userSnap = await getDoc(doc(db, "users", user.uid));
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                if (userData.role === 'provider') {
+                    window.location.href = (userData.isProfileComplete === true) ? 'provider-dashboard.html' : 'provider.html';
+                } else {
+                    window.location.href = 'client.html';
+                }
+            }
+        } else {
+            // لو لم يتم العثور على مستخدم مسجل
+            window.location.href = 'login.html';
+        }
+    }
+
+    // ربط الوظيفة بالزرار يدوياً لأننا نستخدم type="module"
+    window.handleStartClick = handleStartClick;
+
+    // أنميشن الدخول
+    document.addEventListener('DOMContentLoaded', () => {
+        const frame = document.querySelector('.app-frame');
+        if (frame) {
+            frame.style.opacity = '0';
+            frame.style.transform = 'translateY(30px)';
+            setTimeout(() => {
+                frame.style.transition = 'all 1s ease-out';
+                frame.style.opacity = '1';
+                frame.style.transform = 'translateY(0)';
+            }, 100);
+        }
+    });
+    // إظهار الإشعار بعد ثانيتين من دخول الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    // نتحقق أولاً هل المستخدم أغلق الإشعار سابقاً؟
+    if (!localStorage.getItem('banner-closed')) {
+        setTimeout(() => {
+            document.getElementById('install-banner').style.display = 'flex';
+        }, 2000);
+    }
+});
+
+// وظيفة إغلاق الإشعار وحفظ الحالة في المتصفح
+function closeBanner() {
+    document.getElementById('install-banner').style.display = 'none';
+    localStorage.setItem('banner-closed', 'true'); // عشان ما يظهرش تاني ويزعج العميل
+}
+
+</script>
+
+
+
+
+</body>
+</html>

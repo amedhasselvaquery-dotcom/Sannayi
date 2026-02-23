@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sanaayi | الرئيسية</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff5a00;
+            --glass: #ffffff;
+            --bg-light: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+
+        .app-frame {
+            background: var(--bg-light);
+            width: 100%; max-width: 420px; height: 90vh; max-height: 850px;
+            border-radius: 40px; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; position: relative; overflow: hidden;
+        }
+
+        @media (max-width: 500px) {
+            .app-frame { max-width: 100%; height: 100vh; border-radius: 0; }
+        }
+
+        /* الجزء العلوي - الترحيب */
+        .home-header {
+            padding: 40px 25px 20px;
+            background: white;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .user-greet { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .user-greet h2 { margin: 0; font-size: 20px; color: #333; }
+        .user-greet img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+
+        /* شريط البحث */
+        .search-box {
+            background: #f1f3f5; padding: 12px 20px; border-radius: 18px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .search-box input { border: none; background: none; outline: none; width: 100%; font-size: 15px; }
+
+        /* محتوى الصفحة */
+        .home-content {
+            flex: 1; overflow-y: auto; padding: 20px 25px 80px;
+            scrollbar-width: none;
+        }
+        .home-content::-webkit-scrollbar { display: none; }
+
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 15px; }
+        .section-header h3 { margin: 0; font-size: 17px; }
+        .section-header a { color: var(--primary); text-decoration: none; font-size: 13px; font-weight: bold; }
+
+        /* شبكة التصنيفات */
+        .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .cat-item { text-align: center; cursor: pointer; }
+        .cat-icon {
+            width: 60px; height: 60px; background: white; border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 8px; box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            transition: 0.3s; color: var(--primary); font-size: 22px;
+        }
+        .cat-item:hover .cat-icon { background: var(--primary); color: white; transform: translateY(-5px); }
+        .cat-item span { font-size: 11px; font-weight: 600; color: #666; }
+
+        /* كروت الصنايعية من Firestore */
+        .pro-card {
+            background: white; border-radius: 20px; padding: 15px;
+            display: flex; gap: 15px; margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            cursor: pointer; transition: 0.2s;
+        }
+        .pro-card:hover { transform: scale(1.02); }
+        .pro-card img { width: 70px; height: 70px; border-radius: 15px; object-fit: cover; background: #eee; }
+        .pro-info { flex: 1; }
+        .pro-info h4 { margin: 0 0 5px; font-size: 16px; }
+        .pro-info p { margin: 0; font-size: 12px; color: #888; }
+        .rating { color: #ffc107; font-size: 12px; margin-top: 5px; }
+        .price-tag { 
+            background: #fff5f0; color: var(--primary); 
+            padding: 8px 15px; border-radius: 12px;
+            font-weight: bold; font-size: 13px; align-self: center;
+        }
+
+        /* Modal النافذة المنبثقة */
+       /* تحسين شكل نافذة الطلب */
+.modal-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4); 
+    backdrop-filter: blur(4px); /* تغبيش الخلفية لزيادة التركيز */
+    z-index: 2000; display: flex; align-items: flex-end;
+}
+
+.modal-content {
+    background: white; width: 100%; 
+    border-radius: 40px 40px 0 0; /* حواف دائرية من فوق فقط */
+    padding: 30px 25px; box-sizing: border-box;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+}
+
+.modal-header h3 {
+    font-size: 18px; color: #333; font-weight: 800;
+}
+
+/* تجميل أماكن الكتابة */
+.input-wrapper {
+    position: relative; margin-bottom: 15px;
+}
+
+.input-wrapper i {
+    position: absolute; right: 15px; top: 50%;
+    transform: translateY(-50%); color: var(--primary);
+}
+
+.input-style {
+    width: 100%; border: 2px solid #f8f9fa; background: #f8f9fa;
+    padding: 15px 45px 15px 15px; border-radius: 18px;
+    font-size: 14px; outline: none; transition: 0.3s;
+    box-sizing: border-box; font-family: inherit;
+}
+
+.input-style:focus {
+    border-color: var(--primary); background: white;
+    box-shadow: 0 5px 15px rgba(255, 90, 0, 0.05);
+}
+
+textarea.input-style {
+    height: 100px; resize: none;
+}
+
+/* تجميل الزرار */
+.btn-confirm {
+    background: linear-gradient(90deg, #ff5a00, #ff8a4d);
+    color: white; border: none; width: 100%;
+    padding: 18px; border-radius: 20px;
+    font-size: 16px; font-weight: bold;
+    cursor: pointer; transition: 0.3s;
+    box-shadow: 0 10px 20px rgba(255, 90, 0, 0.2);
+    margin-top: 10px;
+}
+
+.btn-confirm:active { transform: scale(0.98); }
+
+        /* Navigation Bar */
+        .bottom-nav {
+            position: absolute; bottom: 0; width: 100%;
+            background: white; height: 70px;
+            display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            border-radius: 30px 30px 0 0;
+        }
+        .nav-item { text-align: center; color: #adb5bd; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 20px; display: block; }
+        .nav-item span { font-size: 10px; font-weight: bold; }
+
+        .hidden { display: none !important; }
+        .animate-up { animation: slideUp 0.4s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    /* تنسيق خاص لخانة الوقت عشان تظهر النص الإرشادي */
+input[type="datetime-local"]::before {
+    content: attr(placeholder);
+    color: #888;
+    margin-left: 10px;
+}
+
+input[type="datetime-local"]:focus::before,
+input[type="datetime-local"]:valid::before {
+    content: ""; /* يختفي الكلام لما يختار تاريخ */
+}
+
+/* تحسين شكل الأيقونة جوه الخانة */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(48%) sepia(100%) saturate(2500%) hue-rotate(1deg) brightness(100%) contrast(105%); /* بيخلي لون أيقونة النتيجة برتقالي */
+}
+/* تأثير لما يكتب في البحث */
+.search-box:focus-within {
+    border: 2px solid var(--primary);
+    background: white;
+    box-shadow: 0 5px 15px rgba(255, 90, 0, 0.1);
+}
+
+    
+/* تنسيق صندوق التحذيرات */
+.warning-box {
+    background: #fff4f4;
+    border-right: 4px solid #d93025;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.warning-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #444;
+}
+
+.warning-item i {
+    color: #d93025;
+    margin-top: 3px;
+}
+
+.warning-item.info i {
+    color: #007bff;
+}
+
+.warning-item b {
+    color: #d93025;
+    display: block;
+}
+
+    </style>
+</head>
+<body>
+
+<div class="app-frame">
+    <div class="home-header">
+        <div class="user-greet">
+            <div>
+                <p style="margin: 0; color: #888; font-size: 13px;">صباح الخير 👋</p>
+                <h2 id="userName">جاري التحميل...</h2>
+            </div>
+<img id="userImg" src="https://ui-avatars.com/api/?name=User&background=random" alt="Profile" onclick="location.href='profile.html'" style="cursor: pointer;">
+     </div>
+        <div class="search-box">
+    <i class="fa-solid fa-magnifying-glass" style="color: #adb5bd;"></i>
+    <input type="text" id="searchInput" placeholder="ابحث عن تخصص (سباكة، كهرباء...)">
+</div>
+
+    </div>
+
+    <div id="servicesModal" class="modal-overlay hidden">
+        <div class="modal-content animate-up">
+            <div class="modal-header">
+                <h3>كل الخدمات</h3>
+                <i class="fa-solid fa-xmark" style="cursor:pointer" onclick="toggleServices(false)"></i>
+            </div>
+            <div class="services-full-grid" id="fullServicesList">
+                </div>
+        </div>
+    </div>
+
+    <div class="home-content">
+        <div class="section-header">
+            <h3>الخدمات</h3>
+            <a href="#" onclick="toggleServices(true)">الكل</a> 
+        </div>
+        
+        <div class="cat-grid">
+            <div class="cat-item" onclick="selectService('سباكة')">
+                <div class="cat-icon"><i class="fa-solid fa-faucet"></i></div>
+                <span>سباكة</span>
+            </div>
+            <div class="cat-item" onclick="selectService('كهرباء')">
+                <div class="cat-icon"><i class="fa-solid fa-bolt"></i></div>
+                <span>كهرباء</span>
+            </div>
+            <div class="cat-item" onclick="selectService('تكييف')">
+                <div class="cat-icon"><i class="fa-solid fa-snowflake"></i></div>
+                <span>تكييف</span>
+            </div>
+            <div class="cat-item" onclick="selectService('نجارة')">
+                <div class="cat-icon"><i class="fa-solid fa-hammer"></i></div>
+                <span>نجارة</span>
+            </div>
+        </div>
+
+        <div class="section-header">
+            <h3 id="listTitle">أعلى التقييمات</h3>
+            <a href="#" onclick="selectService(null)">الكل</a>
+        </div>
+
+        <div id="providersContainer">
+            <p style="text-align: center; color: #888; margin-top: 20px;">جاري البحث عن صنايعية...</p>
+        </div>
+    </div> 
+<div id="orderModal" class="modal-overlay hidden">
+    <div class="modal-content animate-up">
+        <div class="modal-header">
+            <h3 id="targetProviderName">طلب خدمة</h3>
+            <div onclick="closeOrderModal()" style="background: #eee; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fa-solid fa-xmark" style="font-size: 14px; color: #666;"></i>
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <div class="warning-item">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><b>تنبيه هام:</b> تجاهل الرد على الفني بعد طلب الخدمة يعرض حسابك ورمز جهازك (IP) <b>للحظر النهائي</b> من المنصة.</span>
+            </div>
+            <div class="warning-item info">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>تأكد من إضافة <b>رقم هاتفك</b> في الإعدادات، لن يتم قبول أي طلب بدون رقم تواصل مفعل.</span>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div class="input-wrapper">
+                <i class="fa-solid fa-location-dot"></i>
+                <input type="text" id="orderAddress" class="input-style" placeholder="فين مكان الشغل؟ (مثلاً: المعادي، شارع 9)">
+            </div>
+
+            <div class="input-wrapper">
+                <i class="fa-solid fa-comment-medical"></i>
+                <textarea id="orderDesc" class="input-style" placeholder="اشرح لنا المشكلة بسرعة..."></textarea>
+            </div>
+
+            <div class="input-wrapper">
+                <i class="fa-solid fa-clock"></i>
+                <label for="orderTime" style="display: block; font-size: 12px; color: var(--primary); margin-bottom: 5px; font-weight: bold; margin-right: 10px;">حدّد الموعد (متى ترغب في وصول الفني؟):</label>
+                <input type="datetime-local" id="orderTime" class="input-style">
+            </div>
+
+            <button class="btn-confirm" id="confirmOrderBtn">
+                تأكيد وطلب الصنايعي <i class="fa-solid fa-paper-plane" style="margin-right: 8px; font-size: 14px;"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+   <div class="bottom-nav">
+    <div class="nav-item active" onclick="location.href='client.html'"><i class="fa-solid fa-house"></i><span>الرئيسية</span></div>
+    <div class="nav-item" onclick="location.href='My-Orders.html'"><i class="fa-solid fa-clipboard-list"></i><span>طلباتي</span></div>
+    <div class="nav-item" onclick="location.href='chat.html'"><i class="fa-solid fa-comment-dots"></i><span>الرسائل</span></div>
+   <div class="nav-item" onclick="location.href='customer-support.html'">
+    <i class="fa-solid fa-headset"></i>
+    <span>خدمه العملاء</span>
+</div>
+
+    <div class="nav-item" onclick="auth.signOut()"><i class="fa-solid fa-right-from-bracket"></i><span>خروج</span></div>
+</div>
+
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBuFYQuJxjinz7_0yTCTO-0jnvjeg-iXoQ",
+        authDomain: "sanaayi.firebaseapp.com",
+        projectId: "sanaayi",
+        storageBucket: "sanaayi.firebasestorage.app",
+        messagingSenderId: "657863522339",
+        appId: "1:657863522339:web:f7ad44ca81147d0d519996"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 1. فحص المستخدم والترحيب به
+    // ده الكود اللي بيبعت الإشعار
+fetch("https://api.onesignal.com/notifications", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": "Key os_v2_app_b66zbv255zckzlclj6a36ij7uygvutj6dbredonaznzc4bl43js7o6mm3r2o365gfmd5tmcnftbzuxted7nxhccpdhvhpfqk3oelglq"
+    },
+    body: JSON.stringify({
+        app_id: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
+        include_external_user_ids: [currentTargetProvider.id], // ID الفني من فيربيز
+        contents: {"ar": "طلب جديد يا هندسة! 🛠️ محتاجينك بسرعة."},
+        headings: {"ar": "تطبيق صنايعي"}
+    })
+})
+.then(response => response.json())
+.then(data => console.log("Notification Sent ✅", data))
+.catch(error => console.error("Error ❌", error));
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                document.getElementById('userName').innerText = `يا ${userData.name.split(' ')[0]}`;
+                document.getElementById('userImg').src = `https://ui-avatars.com/api/?name=${userData.name}&background=ff5a00&color=fff`;
+            }
+            loadProviders(); 
+        } else {
+            window.location.href = "index.html"; 
+        }
+    });
+
+    // 2. دالة جلب الصنايعية
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+    const term = e.target.value.trim().toLowerCase(); // الكلمة اللي اليوزر كتبها
+    const cards = document.querySelectorAll('.pro-card');
+    let foundAny = false;
+
+    cards.forEach(card => {
+        // بنجيب النص بتاع التخصص اللي جوه الكارت
+        // بنشيل منه أي مسافات زيادة عشان البحث يكون دقيق
+        const specialty = card.querySelector('.pro-info p').innerText.toLowerCase();
+
+        // البحث المرن: لو الكلمة اللي اتكتبت موجودة جوه نص التخصص
+        if (specialty.includes(term)) {
+            card.style.display = "flex";
+            card.classList.add('animate-up'); // إضافة حركة خفيفة لما يظهر
+            foundAny = true;
+        } else {
+            card.style.display = "none";
+            card.classList.remove('animate-up');
+        }
+    });
+
+    // إظهار رسالة لو مفيش تخصص مطابق
+    const container = document.getElementById('providersContainer');
+    const oldMsg = document.getElementById('no-results-msg');
+    if (oldMsg) oldMsg.remove();
+
+    if (!foundAny && term !== "") {
+        container.insertAdjacentHTML('beforeend', `
+            <div id="no-results-msg" style="text-align:center; padding:30px; color:#888;">
+                <i class="fa-solid fa-magnifying-glass-blur" style="font-size:30px; margin-bottom:10px; opacity:0.5;"></i>
+                <p>للأسف مفيش فنيين في تخصص "${term}" حالياً</p>
+            </div>
+        `);
+    }
+});
+
+    async function loadProviders(category = null) {
+    const container = document.getElementById('providersContainer');
+    const title = document.getElementById('listTitle');
+    
+    container.innerHTML = '<p style="text-align:center; color:#888;">جاري البحث عن فنيين متاحين...</p>';
+    title.innerText = category ? `فنيين ${category}` : "أعلى التقييمات";
+
+    try {
+        let q;
+        
+        if (category) {
+            // جلب الفنيين في تخصص معين بشرط أن يكونوا (Online)
+            q = query(
+                collection(db, "users"), 
+                where("role", "==", "provider"), 
+                where("specialization", "==", category),
+                where("isOnline", "==", true)
+            );
+        } else {
+            // جلب كل الفنيين المتاحين (Online) للقائمة العامة
+            q = query(
+                collection(db, "users"), 
+                where("role", "==", "provider"), 
+                where("isOnline", "==", true)
+            );
+        }
+
+        const querySnapshot = await getDocs(q);
+        container.innerHTML = '';
+
+        if (querySnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px 20px;">
+                    <i class="fa-solid fa-user-slash" style="font-size:40px; color:#ccc; margin-bottom:15px;"></i>
+                    <p style="color:#888;">عفواً، لا يوجد فنيين متاحين حالياً ${category ? 'في هذا التخصص' : ''}.</p>
+                </div>`;
+            return;
+        }
+
+        querySnapshot.forEach((doc) => {
+            const p = doc.data();
+            const card = `
+                <div class="pro-card" onclick="window.openOrder('${doc.id}', '${p.name}')">
+                    <img src="https://ui-avatars.com/api/?name=${p.name}&background=ff5a00&color=fff" alt="Worker">
+                    <div class="pro-info">
+                        <h4>${p.name}</h4>
+                        <p><i class="fa-solid fa-screwdriver-wrench"></i> ${p.specialization}</p>
+                        <div class="rating">
+    <i class="fa-solid fa-star" style="color: #ffc107;"></i> 
+    ${p.rating ? p.rating : '0.0'} 
+    <span style="font-size: 10px; color: #aaa;">(${p.reviewsCount || 0})</span>
+</div>
+
+                    <div class="price-tag">طلب الآن</div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', card);
+        });
+    } catch (e) {
+        console.error("Error loading providers: ", e);
+        container.innerHTML = '<p style="text-align:center; color:red;">حدث خطأ أثناء تحميل البيانات، يرجى المحاولة لاحقاً.</p>';
+    }
+}
+
+
+    // 3. الدوال العامة
+    window.selectService = (name) => {
+        loadProviders(name);
+        window.toggleServices(false);
+    };
+
+    window.toggleServices = (show) => {
+        const modal = document.getElementById('servicesModal');
+        modal.classList.toggle('hidden', !show);
+        if(show) {
+            const list = document.getElementById('fullServicesList');
+            const services = [
+                {n:'سباكة', i:'fa-faucet'}, {n:'كهرباء', i:'fa-bolt'}, 
+                {n:'تكييف', i:'fa-snowflake'}, {n:'نجارة', i:'fa-hammer'},
+                {n:'دهانات', i:'fa-paint-roller'}, {n:'تنظيف', i:'fa-broom'},
+                {n:'دش', i:'fa-satellite-dish'}, {n:'الوميتال', i:'fa-window-maximize'}
+            ];
+            list.innerHTML = services.map(s => `
+                <div class="cat-item" onclick="selectService('${s.n}')">
+                    <div class="cat-icon"><i class="fa-solid ${s.i}"></i></div>
+                    <span>${s.n}</span>
+                </div>
+            `).join('');
+        }
+    };
+
+    import { addDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+let currentTargetProvider = null;
+
+// فتح نافذة الطلب
+window.openOrder = (id, name) => {
+    currentTargetProvider = { id, name };
+    document.getElementById('targetProviderName').innerText = `طلب خدمة من: ${name}`;
+    document.getElementById('orderModal').classList.remove('hidden');
+
+    // كود يخلي الوقت الافتراضي هو "دلوقتي"
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('orderTime').value = now.toISOString().slice(0, 16);
+};
+
+
+// قفل النافذة
+window.closeOrderModal = () => {
+    document.getElementById('orderModal').classList.add('hidden');
+};
+
+// وظيفة إرسال الطلب لفايربيز
+document.getElementById('confirmOrderBtn').onclick = async () => {
+    const address = document.getElementById('orderAddress').value;
+    const desc = document.getElementById('orderDesc').value;
+    const time = document.getElementById('orderTime').value;
+    const currentUser = auth.currentUser;
+
+    // 1. التحقق من إدخال البيانات في الخانات
+    if(!address || !desc || !time) {
+        return alert("⚠️ من فضلك أكمل تفاصيل الطلب (العنوان، الموعد، والوصف) أولاً.");
+    }
+
+    // 2. رسالة التأكيد "الشيك" والتحذير من الحظر
+    const confirmPolicy = confirm(
+        "تنبيه هام جداً:\n\n" +
+        "• بمجرد الطلب، أنت تلتزم بالرد على الفني فور تواصله معك.\n" +
+        "• في حال تجاهل الرد، سيتم حظر IP جهازك نهائياً من المنصة.\n" +
+        "• سيتم إرسال رقم هاتفك المسجل في الإعدادات للفني الآن.\n\n" +
+        "هل أنت متأكد من استكمال الطلب؟"
+    );
+
+    if(!confirmPolicy) return;
+
+    try {
+        // 3. جلب بيانات العميل (الاسم والرقم) من الـ Firestore
+        // لضمان أننا نرسل الرقم المحدث الموجود في البروفايل
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        
+        if (!userDoc.exists()) {
+            return alert("خطأ: لم نتمكن من العثور على بيانات حسابك.");
+        }
+
+        const userData = userDoc.data();
+        const userPhone = userData.phone || "لم يسجل رقم";
+
+        // التحقق إذا كان العميل نسي يضيف رقم في البروفايل
+        if (!userData.phone || userData.phone.trim() === "") {
+            return alert("⚠️ عفواً! يجب إضافة رقم هاتفك في صفحة 'حسابي' أولاً ليتمكن الفني من التواصل معك.");
+        }
+
+        // 4. إرسال الطلب لـ Firestore متضمناً كل البيانات
+        // 1. هنا الكود الأصلي بتاعك اللي بيبعت الطلب للفيربيز
+const docRef = await addDoc(collection(db, "orders"), {
+    clientId: currentUser.uid,
+    clientName: userData.name || "عميل",
+    clientPhone: userPhone,
+    providerId: currentTargetProvider.id, // ده الـ ID اللي هنبعتله الإشعار
+    providerName: currentTargetProvider.name,
+    address: address,
+    description: desc,
+    appointment: time,
+    status: 'pending',
+    createdAt: new Date()
+});
+
+// 2. 🔥 الزيادة اللي هتحطها هنا عشان الإشعار يوصل والموبايل مقفول 🔥
+try {
+    fetch("https://api.onesignal.com/notifications", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": "Key os_v2_app_b66zbv255zckzlclj6a36ij7uygvutj6dbredonaznzc4bl43js7o6mm3r2o365gfmd5tmcnftbzuxted7nxhccpdhvhpfqk3oelglq"
+        },
+        body: JSON.stringify({
+            app_id: "0fbd90d7-5dee-44ac-ac4b-4f81bf213fa6",
+            // بنقوله ابعت للفني اللي الـ ID بتاعه متسجل عندنا
+            include_external_user_ids: [currentTargetProvider.id], 
+            contents: {"ar": "يا هندسة في عميل محتاجك، ادخل شوف الطلب! 🛠️"},
+            headings: {"ar": "طلب جديد في صنايعي"}
+        })
+    });
+    console.log("تم إرسال نداء الإشعار بنجاح");
+} catch (error) {
+    console.error("فشل إرسال الإشعار:", error);
+}
+
+// 3. هنا الكود الأصلي بتاعك اللي بيحول العميل لصفحة الرادار
+window.location.href = `radar.html?orderId=${docRef.id}`;
+
+
+
+    window.auth = { signOut: () => signOut(auth) };
+
+</script>
+</body>
+</html>
